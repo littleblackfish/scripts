@@ -1,0 +1,19 @@
+#!/bin/bash
+
+
+command="gnuplot -p -e \"set term png size 1024,768; set out '$fn.png'; plot "
+
+for y in $@
+do
+#  echo $y
+  for x in $y*
+  do
+    command=$command\'$x\'\ w\ linesp,  
+  done
+
+done
+
+command=$command\'asdvbu\'\"
+
+eval $command
+
