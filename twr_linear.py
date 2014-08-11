@@ -222,12 +222,12 @@ if __name__ == '__main__':
 		
 		if bins ==1 : 	# no interpolation	
 			ltw.append (twist(T,u))
-			lwr_zero.append (writhe_inc (T_zero, T))
-			lwr_prev.append (writhe_inc (T_prev, T))
+#			lwr_zero.append (writhe_inc (T_zero, T))
+#			lwr_prev.append (writhe_inc (T_prev, T))
 		else :		# with interpolation	
 			ltw.append (collapse(twist(T,u),bins))
-			lwr_zero.append (collapse (writhe_inc (T_zero, T),bins))
-			lwr_prev.append (collapse (writhe_inc (T_prev, T),bins))
+#			lwr_zero.append (collapse (writhe_inc (T_zero, T),bins))
+#			lwr_prev.append (collapse (writhe_inc (T_prev, T),bins))
 		
 		if t < nframes-1:  system.trajectory.next()
 	print ''
@@ -239,16 +239,16 @@ if __name__ == '__main__':
 		tw.append(sum(x))
 		x-=mean(x)
 	
-	for x in lwr_zero :	
-		wr_zero.append(sum(x))
-		x-=mean(x)
+#	for x in lwr_zero :	
+#		wr_zero.append(sum(x))
+#		x-=mean(x)
 
-	for x in lwr_prev :	wr_prev.append(wr_prev[-1]+sum(x))
+#	for x in lwr_prev :	wr_prev.append(wr_prev[-1]+sum(x))
 
 	print 'saving stuff..'
 	savetxt('twist.dat', array([ range (len(tw)), tw]).T )
 	savetxt('twist-traj.dat', array(ltw).T)
-	savetxt('writhe.dat', array([range(len(wr_zero)),wr_prev,wr_zero]).T)
-	savetxt('writhe-traj-zero.dat', array(lwr_zero).T )
-	savetxt('writhe-traj-prev.dat', array(lwr_prev).T )
+#	savetxt('writhe.dat', array([range(len(wr_zero)),wr_prev,wr_zero]).T)
+#	savetxt('writhe-traj-zero.dat', array(lwr_zero).T )
+#	savetxt('writhe-traj-prev.dat', array(lwr_prev).T )
 
