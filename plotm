@@ -1,0 +1,3 @@
+#!/bin/bash
+
+gplot  -s 'autoscale fix' $1 'matrix w image' 
