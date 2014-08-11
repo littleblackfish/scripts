@@ -1,0 +1,258 @@
+#! /bin/bash 
+#
+# C.Junghans
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+#version 0.94   17.09.07 -- added --pipe
+#version 0.95   17.09.07 -- added --range to enable obscure ranges
+#version 0.96   17.09.07 -- added --tee option
+#version 0.97   17.09.07 -- added --gversion to help confused people
+#version 0.98   01.10.07 -- change read code
+#version 0.99   09.10.07 -- bug in multi and allow piping of eps
+#version 0.100  09.10.07 -- added splitting of short options
+#version 1.0    10.10.07 -- better short opts
+#version 1.1    18.10.07 -- removed string bug
+#version 1.1.1  06.02.08 -- removed base name
+#version 1.1.2  09.04.08 -- added ymarker
+#version 1.1.3  16.04.08 -- better version system
+#version 1.1.4  01.09.08 -- added --pid
+#version 1.2.0  03.09.08 -- read from stdin is now default
+#version 1.3.0  05.09.08 -- added --replot
+#version 1.3.1  08.09.08 -- added wxt to persist terms
+#version 1.3.2  29.09.08 -- added -w options
+#version 1.3.3  13.10.08 -- added GPL header
+#version 1.3.4  15.10.08 -- corrected documentation
+#version 1.3.5  12.05.09 -- corrected --gnuplot thx to Victor
+#version 1.3.6  14.05.09 -- gplot should not be interactive
+#version 1.3.7  01.06.09 -- corrected pid things
+#version 1.3.8  18.07.09 -- corrected --help text
+#version 1.3.9  22.01.10 -- clean up
+#version 1.3.10 09.10.10 -- added --[xyz]range option (thx to cahit)
+#version 1.4.0  23.12.11 -- removed --replot/--pid
+#version 1.4.1  24.12.11 -- major clean up - removed rarely used options
+#version 1.5.0  08.03.12 -- include lev's suggestions
+#version 1.6.0  26.04.12 -- added --for option
+
+usage="Usage: ${0##*/} OPTIONS <[?:?]> filename <gpoptions>"
+set=""
+range=""
+plot="plot"
+term=""
+defaultterm="postscript enhanced eps color"
+out=""
+gnuplot="gnuplot"
+print=""
+multi=""
+pipe="no"
+data=""
+md5sum="md5sum"
+dregex="[-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?"
+persist=""
+
+die() {
+  echo -e "$*" >&2
+  exit 1
+}
+
+help () {
+cat << eof
+Single line gnuplot pipe !
+$usage
+
+OPTIONS:
+-3, --splot         Use splot instead of plot
+    --for XXX       Add for loop before first file (needs gnuplot 4.4)
+-s, --set 'SET'     Setting some gnuplot option (may multiple)
+    --[xyz]range RA Set [xyz]range, can be overwritten by --range
+-u, --unset 'SET'   Unsetting some gnuplot option (may multiple)
+-m, --ymarker NUM   Plot marker line in y direction at NUMBER
+-x, --xlabel LABEL  Set x label
+-y, --ylabel LABEL  Set y label
+-z, --zlabel LABEL  Set z label
+-t, --title  NAME   Set title
+-k, --nokey         Unset key
+-r, --range TEXT    Set obscure range (may multiple x->y->z)
+                    (disable build-in range detection)
+-c, --command TEXT  Extra gnuplot command (unset etc.)
+-o, --output FILE   Plot to file (ignores -d)
+                    on term "$defaultterm"
+                    change with --term
+    --term TERM     Change term to TERM
+                    Default: Nothing (whatever gnuplot is using)
+    --tex           Same as --term "epslatex color"
+    --tex2          Same as --term "epslatex color standalone"
+-d, --dumb          Same as --term dump (useful for console)
+-w, --wxt           Same as --term wxt (allow to rescale)
+-p, --print         Print command instead of running gnuplot
+                    (useful for making plotfiles)
+    --gnuplot NAME  Change the gnuplot command
+                    Default: "$gnuplot"
+    --persist       Adds -persist to gnuplot command
+-i, --pipe          Switch on reading data from STDIN by hand (useful, with --)
+    --              All following arguments are files and plot options (Mind quotes)
+                    (Ranges option will still be checked, but not files)
+-h, --help          Show this help
+-v, --version       Show version
+    --gversion      Show gnuplot version (may use --gnuplot before)
+
+Examples: ${0##*/} [1:2][2:3] file.d u 1:2
+          ${0##*/} file2.d w lines
+          ${0##*/} -xx data
+          ${0##*/} -o pic.eps -t "Title" file2.d w l
+	  ${0##*/} -s log -xx -- [1:] x**2
+          ${0##*/} -3s pm3d -- x*y w pm3d
+          ${0##*/} -- '"data" u 1:2, "data" u 1:3 w l'
+          ${0##*/} -c "unset key" data u 1:2
+          seq 1 10 | ${0##*/} -r "[:][0:12]" - 't "data"'
+          seq 1 2 | ${0##*/}
+	  ${0##*/} --for [i=1:3] data u 0:'(column(i))' w l
+
+Report bugs and comments at https://code.google.com/p/gnuplotutils/issues/list
+                         or junghans@votca.org
+eof
+}
+
+shopt -s extglob
+while [[ ${1} = -?* ]]; do
+  if [[ ${1} = --*=* || ${1} = -?=* ]]; then # case --xx=yy
+    set -- "${1%%=*}" "${1#*=}" "${@:2}" # --xx=yy to --xx yy
+  elif [[ ${1} = -[^-]?* ]]; then # case -xy split
+    if [[ ${1} = -[sumxytrco]* ]]; then #short opts with arguments
+       set -- "${1:0:2}" "${1:2}" "${@:2}" # -xy to -x y
+    else #short opts without arguments
+       set -- "${1:0:2}" "-${1:2}" "${@:2}" # -xy to -x -y
+    fi
+ fi
+ case $1 in 
+   -s | --set)
+     set+="set $2\n"
+     shift 2 ;;
+   -u | --unset)
+     set+="unset $2\n"
+     shift 2 ;;
+   -m | --ymarker)
+     [[ $2 =~ ^$dregex$ ]] || die "Marker argument '$2' has to be a number"
+     set+="set arrow from $2, graph 0 to $2, graph 1 nohead lt -1 \n"
+     shift 2 ;;
+   -[xyz] | --[xyz]label)
+     set+="set ${1//[^xyz]}label '${2}'\n"
+     shift 2 ;;
+   -t | --title)
+     set+="set title '$2'\n"
+     shift 2 ;;
+   -k | --nokey)
+     set+="unset key\n"
+     shift ;;
+   -r | --range)
+     range+="$2"
+     shift 2 ;;
+   --[xyz]range)
+     set+="set ${1##--} $2\n"
+     shift 2 ;;
+   -c | --command)
+     set+="$2\n"
+     shift 2 ;;
+   -o | --output)
+     out="$2"
+     #if term was not set before
+     [[ -z $term ]] && term="$defaultterm"
+     shift 2 ;;
+   -- )
+     multi="yes"
+     shift
+     break ;;
+   --term)
+     term="$2"
+     shift 2 ;;
+   --tex)
+     term="epslatex color"
+     shift ;;
+   --tex2)
+     term="epslatex color standalone"
+     shift ;;
+   -d | --dumb)
+     term="dumb"
+     shift ;;
+   -w | --wxt)
+     term="wxt"
+     shift ;;
+   -3 | --splot)
+     plot="splot"
+     shift ;;
+   --for )
+     for="$2"
+     shift 2;;
+   -p | --print)
+     print="yes"
+     shift ;;
+   --gnuplot)
+     gnuplot="$2"
+     shift 2;;
+   --persist)
+     persist="yes"
+     shift;;
+   -i | --pipe)
+     pipe="yes"
+     shift ;;
+   -h | --help)
+     help
+     exit 0;;
+   -v | --version)
+     echo "${0##*/}", $(sed -ne 's/^#\(version.*\) -- .*$/\1/p' $0 | sed -n '$p') by C. Junghans
+     exit 0;;
+   --hg)
+     echo "${0##*/}: $(sed -ne 's/^#version.* -- \(.*\)$/\1/p' $0 | sed -n '$p')"
+     exit 0;;
+   --gversion)
+     echo show version | $gnuplot
+     exit 0;;
+   *)
+    die "Unknown option '$1'";;
+ esac
+done
+
+# if frange is not already defined check for first char, [ which implies a range
+if [[ -z $range && ${1} = "["* ]]; then
+  [[ $plot = splot ]] && n=3 || n=2
+  [[ $1 =~ ^(\[$dregex:$dregex\]){1,$n}$  ]] || die "Range has strange form use --range option"
+  range="$1"
+  shift
+fi
+
+#no agrument left -> read from pipe (add argument -)
+[[ -z $1 ]] && set -- "-"
+
+#multiple files - take the rest as gpcommand
+if [[ $multi = yes ]]; then
+  gpcommand="$@"
+else
+  [[ $1 = "-" ]] && pipe="yes"
+  [[ $1 != '-' && ! -r $1 ]] && die "file '$1' not found !\n1st argument MUST be a file or use -- option"
+  #add " to filename
+  gpcommand="'$1' ${@:2}"
+fi
+
+#if term is X11, aqua or default gnuplot has to persist
+[[ $term = @(x11|wxt|aqua)?( *) || -z $term || -n $persist ]] && gnuplot+=" -persist"
+[[ $print = yes ]] && gnuplot="cat"
+{
+  [[ -n $term ]] && echo -e "set terminal $term"
+  [[ -n $out ]] && echo -e "set output '$out'"
+  echo -e "${set}"
+  echo -e "$plot $range ${for:+for} ${for} $gpcommand"
+  [[ $pipe = yes ]] && cat
+} | $gnuplot || \
+  die "$gnuplot finished with error !"

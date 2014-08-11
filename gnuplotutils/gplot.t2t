@@ -1,0 +1,190 @@
+gplot
+Christoph Junghans
+%%mtime(%m/%d/%Y)
+
+%!IncludeConf: config.t2t
+
+= NAME =
+
+gplot - shell interface to gnuplot
+
+= SYNOPSIS =
+
+**gplot** ""[""//OPTION//""]"" ""[""//PLOT_RANGE//""]"" ""[""//FILE//""]""
+
+**gplot** ""[""//OPTION//""]""... -- //PLOT_COMMAND//
+
+= DESCRIPTION =
+
+**gplot** is a GPL shell script to do quick plots from command line.
+
+Please visit the program site at
+__http://gnuplotutils.googlecode.com__.
+
+
+= OPTIONS =
+
+All options are first come first evaluated. Concatenation of short options is possible.
+
+: **-3**, **--splot**
+Use splot instead of plot
+
+: **-s**, **--set** //SET//
+Setting some gnuplot option (may multiple)
+
+: **-[xyz]range** //RA//
+Set [xyz]range, can be overwritten by **--range**
+
+: **-u**, **--unset** //SET//
+Unsetting some gnuplot option (may multiple)
+
+: **-m**, **--ymarker** //NUM//
+Plot marker line in y direction at //NUM//
+
+: **-x**, **--xlabel** //LABEL//
+Set x label
+
+: **-y**, **--ylabel** //LABEL//
+Set y label
+
+: **-z**, **--zlabel** //LABEL//
+Set z label
+
+: **-t**, **--title** //NAME//
+Set title
+
+: **-k**, **--nokey**
+Unset key
+
+: **-r**, **--range** //TEXT//
+Set obscure range (may multiple), disables build-in range grepping
+
+: **-c**, **--command** //TEXT//
+Extra gnuplot command (unset etc.)
+
+: **-o**, **--output** //FILE//
+Plot to file (ignores -d) on term "postscript enhanced eps color", change with **--term**
+
+: **--term** //TERM//
+Change term to TERM (only used at given **-o**)
+
+Default: Nothing (whatever gnuplot is using)
+
+: **--tex**
+Same as **--term** "epslatex color"
+
+: **--tex2**
+Same as **--term** "epslatex color standalone"
+
+: **-d**, **--dumb**
+Same as  **--term** "dump" (useful for console)
+
+: **-w**, **--wxt**
+Same as  **--term** "wxt" (allows to rescale)
+
+: **-p**, **--print**
+Print command instead of running gnuplot (useful for making plotfiles)
+
+: **--gnuplot** //NAME//
+Change the gnuplot command
+
+: **--persist**
+Adds -persist to gnuplot command
+
+Default: "gnuplot"
+
+: **--pid**
+Display pid of gnuplot window
+
+: **-i**, **--pipe**
+Switch on reading data from //STDIN// by hand (useful with **--**)
+
+: **--**
+All following arguments are files and plot options,
+ranges will still be checked by grep, unless -r given,
+useful for plotting multiple files (**BUT** quote yourself!)
+
+: **-h**, **--help**
+Show help
+
+: **-v**, **--version**
+Show version
+
+: **--gversion**
+Show gnuplot version (may use **--gnuplot** before)
+
+
+= EXAMPLE =
+
+
+Some useful one liners:
+- ``gplot [1:2][2:3] file.d u 1:2``
+- ``gplot -o file.eps file.d``
+- ``gplot file2.d w lines``
+- ``gplot -xx data``
+- ``gplot -o pic.eps -t "Title" file2.d w l``
+- ``gplot -s log -xx -- [1:10] x**2``
+- ``gplot -3s pm3d -- x*y w pm3d``
+- ``gplot -- '"data" u 1:2, "data" u 1:3 w l'``
+- ``gplot -c "unset key" data u 1:2``
+- ``seq 1 10 | gplot -r "[:][0:12]" --tee - 't "data"'``
+- ``seq 1 2 | gplot``
+
+
+Notice the quoting, especially when using the //--// option. From time to time gnuplot want quotes itself as well:
+- labels with spaces
+- filename after (s)plot command, when plotting only one file this is done by **gplot**
+
+
+If you are unsure what is going on, use //-p// option.
+
+= HOW THIS WORKS =
+
+In the beginning **gplot** was just a wrapper running gnuplot with a common plot command:
+``` echo "plot $*" | gnuplot
+then the read-in from STDIN was added:
+``` read | sed '1i plot "-"' | gnuplot
+the other options make stuff just simpler.
+
+The //--replot// option helps to have the most recent plot on screen.
+It kills the recent window and plot the current data again.
+
+It also generates basic plot files for **gp2eps** with //--gp2eps// option.
+
+= TRICKS =
+
+**gplot** is very useful when you want to automatically plot many datafile
+```
+for myfile in *.d; do
+  gplot -o ${myfile%.d}.eps -t ${myfile%.d} ${myfile} with lines
+done
+```
+now there are many eps files, which one can combine by using **tricktex**.
+
+= HISTORY =
+
+When I, Christoph, was at [ITP www.physik.uni-leipzig.de] in Leipzig in 2005,
+there exist a script called //mplot// by A. Nussbaumer which was doing somehow the same thing.
+But I need some other options, that was why I start **gplot**.
+
+But when I went to [Mainz www.mpip-mainz.mpg.de] in 2007, I meet T. Vettorel who had a //mplot// script
+as well. So **gplot** is a mixture of a lot of  ideas from all these scripts and stuff which I found useful
+somewhen.
+
+In 2009 I first published it outside my groups on googlecode under GPLv2.
+
+= AUTHOR =
+
+Written and maintained by Christoph Junghans <junghans@mpip-mainz.mpg.de>
+
+This Manual Page was written by Christoph
+as a text file, then converted to this format by [txt2tags http://txt2tags.sourceforge.net] !
+
+
+= COPYRIGHT =
+
+Copyright (C) 2005 - 2009 Christoph Junghans
+
+This is free software; see the source for copying conditions. There is
+NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR
+PURPOSE.

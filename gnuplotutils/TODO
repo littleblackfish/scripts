@@ -1,0 +1,17 @@
+* manpages
+  * tricktex manpage
+* replace bbox_add by internal function in tricktex
+* make a release with readme -> 1.0
+* README 
+  * some intro words
+* doc
+  * in txt2tags or latex
+  * with some nice plots from papers
+* gp2eps
+  * add tricktex functionality (--tex option + guess for $0) -> may no realy useful
+  * more terminal (like tkiz)
+  * add --multiplot option
+    * layout option 2,1 1,3, ...
+    * label ( (a),(b),(c) at graph 0.05,0.95) option
+* gplot
+  * make ',' a seperator for files
