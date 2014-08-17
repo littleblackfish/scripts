@@ -61,7 +61,7 @@ function plocate(mol::String, traj::String )
 
 	for t=1:nframes-1
 
-		println (t, "\r")
+		#println (t, "\b")
 		# skip the first frame (dummy.gro)
 		system[:trajectory][:next]()
 		
@@ -72,6 +72,54 @@ function plocate(mol::String, traj::String )
 		pcenter[t], pwidth[t] = plocate(r)
 	end
 	return pcenter, pwidth
+end
+
+
+# function that returns a plectoneme kymograph
+
+function pkymograph (center::Vector, width::Vector, nbeads::Int)
+	nframes = length(center)
+	kym = zeros(Int, nbeads, nframes)
+
+	for t=1:nframes
+		if width[t]>0
+			w = width[t]/2 
+			for i=center[t]-w:center[t]+w
+				kym[i,t]=1
+			end
+		end
+	end
+	return kym
+end
+
+#function that calculates an autocorrelation inside vs. outside plectoneme
+
+function autocorrel(data::Matrix, plec::Matrix, maxtau=100)
+	if size(data) != size(plec)
+		error ("data and plectoneme kymograph must be of same size")
+	end
+
+	nbeads, nframes = size(data)
+
+	data -= mean(data)	#normalization
+	incorrel, oucorrel = zeros(Float64, maxtau), zeros(Float64, maxtau)
+
+	for tau=1:maxtau
+		intmp = zeros(Float64, nbeads, nframes-tau)
+		outmp = zeros(Float64, nbeads, nframes-tau)
+
+		for i=1:nbeads, t=1:nframes-tau
+			if plec[i,t] > 0 && plec[i,t+tau] >0
+				intmp[i,t]=data[i,t]*data[i,t+tau]
+			elseif plec[i,t] ==0 && plec [i,t+tau] ==0
+				outmp[i,t]=data[i,t]*data[i,t+tau]
+			end
+		end
+		incorrel[tau] = sum(intmp)/sum(intmp.>0)
+		oucorrel[tau] = sum(outmp)/ sum(outmp.>0)
+#		println (sum(intmp.>0), " ", sum(outmp.>0))
+	end
+	return incorrel, oucorrel
 end
 
 
@@ -96,8 +144,21 @@ function r2t(center::Vector)
 end
 
 center, width = plocate("minimized.gro", "minimized.gro")
+
+println("tracking plectoneme")
 center, width = plocate("minimized.gro", "traj-sparse.xtc")
 
 writedlm("center.dat", center)
 writedlm("width.dat" , width)
+
+println("calculating kymograph")
+kym= pkymograph(center, width,666)
+writedlm("plectoneme.dat", kym) 
+
+println("calculating twist correlation")
+i,o=autocorrel(readdlm("twist-local.dat"), kym,200)
+writedlm("twist-correl.dat", [1:length(i) i o] )
+
+println("calculating r^2 vs t")
 writedlm("r2t.dat", r2t(center))
+

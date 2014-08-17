@@ -11,7 +11,7 @@ function correlation (data)
 	data -= mean(data);
 	nbeads, nframes = size(data)
 
-	maxtau=500
+	maxtau=int(size(data,2)/2)
 
 	c= Array(Float64, maxtau)
 
